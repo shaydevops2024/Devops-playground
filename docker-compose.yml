@@ -1,0 +1,68 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: devops-playground-db
+    environment:
+      POSTGRES_DB: devops_playground
+      POSTGRES_USER: devops_admin
+      POSTGRES_PASSWORD: DevOps2024!Secure
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - devops-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devops_admin -d devops_playground"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: devops-playground-backend
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      DATABASE_URL: postgresql://devops_admin:DevOps2024!Secure@postgres:5432/devops_playground
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+      CORS_ORIGIN: http://0.0.0.0:8081,http://localhost:8081
+    ports:
+      - "5000:5000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./scenarios:/app/scenarios:ro
+      - backend_logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - devops-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: devops-playground-frontend
+    environment:
+      REACT_APP_API_URL: http://0.0.0.0:5000
+      REACT_APP_WS_URL: ws://0.0.0.0:5000
+    ports:
+      - "8081:80"
+    depends_on:
+      - backend
+    networks:
+      - devops-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  backend_logs:
+
+networks:
+  devops-network:
+    driver: bridge
