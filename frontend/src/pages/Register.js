@@ -28,6 +28,10 @@ const Register = () => {
     setError('');
     setSuccess('');
 
+    console.log('Register form submitted');
+    console.log('Form data:', { ...formData, password: '***', confirmPassword: '***' });
+
+    // Validation
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       return;
@@ -38,14 +42,44 @@ const Register = () => {
       return;
     }
 
+    // Check password strength
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{8,}$/;
+    if (!passwordRegex.test(formData.password)) {
+      setError('Password must contain at least: 1 uppercase, 1 lowercase, 1 number, and 1 special character (@$!%*?&#)');
+      return;
+    }
+
+    if (formData.username.length < 3) {
+      setError('Username must be at least 3 characters');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      await register(formData.username, formData.email, formData.password);
+      console.log('Sending registration request...');
+      const response = await register(formData.username, formData.email, formData.password);
+      console.log('Registration response:', response);
+      
       setSuccess('Account created successfully! Redirecting to login...');
       setTimeout(() => navigate('/login'), 2000);
     } catch (err) {
-      setError(err.response?.data?.error || 'Registration failed');
+      console.error('Registration error:', err);
+      console.error('Error response:', err.response);
+      
+      let errorMessage = 'Registration failed';
+      
+      if (err.response?.data?.error) {
+        errorMessage = err.response.data.error;
+      } else if (err.response?.data?.errors) {
+        // Handle validation errors array
+        const errors = err.response.data.errors;
+        errorMessage = errors.map(e => e.msg).join(', ');
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -68,6 +102,7 @@ const Register = () => {
                 required
                 disabled={loading}
                 minLength="3"
+                autoComplete="username"
               />
             </div>
 
@@ -80,6 +115,7 @@ const Register = () => {
                 onChange={handleChange}
                 required
                 disabled={loading}
+                autoComplete="email"
               />
             </div>
 
@@ -93,9 +129,10 @@ const Register = () => {
                 required
                 disabled={loading}
                 minLength="8"
+                autoComplete="new-password"
               />
               <small style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>
-                Min 8 characters with uppercase, lowercase, number, and special character
+                Min 8 characters with uppercase, lowercase, number, and special character (@$!%*?&#)
               </small>
             </div>
 
@@ -108,6 +145,7 @@ const Register = () => {
                 onChange={handleChange}
                 required
                 disabled={loading}
+                autoComplete="new-password"
               />
             </div>
 
@@ -125,7 +163,7 @@ const Register = () => {
           </form>
 
           <p style={styles.link}>
-            Already have an account? <Link to="/login">Login here</Link>
+            Already have an account? <Link to="/login" style={styles.linkText}>Login here</Link>
           </p>
         </div>
       </div>
@@ -155,6 +193,11 @@ const styles = {
     marginTop: '20px',
     textAlign: 'center',
     color: 'var(--text-secondary)',
+  },
+  linkText: {
+    color: 'var(--accent-primary)',
+    textDecoration: 'none',
+    fontWeight: '600',
   },
 };
 

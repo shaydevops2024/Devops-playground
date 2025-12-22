@@ -11,7 +11,7 @@ const JWT_EXPIRES_IN = '24h';
 // Rate limiting for auth endpoints
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 requests per window
+  max: 10, // Increased from 5 to 10 for testing
   message: 'Too many authentication attempts, please try again later',
   standardHeaders: true,
   legacyHeaders: false,
@@ -29,7 +29,7 @@ const validateRegistration = [
     .withMessage('Invalid email address'),
   body('password')
     .isLength({ min: 8 })
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]/)
     .withMessage('Password must be at least 8 characters with uppercase, lowercase, number, and special character'),
 ];
 
@@ -41,14 +41,17 @@ const validateLogin = [
 
 // Register new user
 router.post('/register', authLimiter, validateRegistration, async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-
-  const { username, email, password } = req.body;
-
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      global.logger.warn('Registration validation failed:', errors.array());
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { username, email, password } = req.body;
+    
+    global.logger.info(`Registration attempt for username: ${username}`);
+
     // Check if user already exists
     const existingUser = await global.dbPool.query(
       'SELECT id FROM users WHERE username = $1 OR email = $2',
@@ -56,6 +59,7 @@ router.post('/register', authLimiter, validateRegistration, async (req, res) => 
     );
 
     if (existingUser.rows.length > 0) {
+      global.logger.warn(`Registration failed: Username or email already exists - ${username}`);
       return res.status(409).json({ error: 'Username or email already exists' });
     }
 
@@ -76,7 +80,7 @@ router.post('/register', authLimiter, validateRegistration, async (req, res) => 
       [user.id, 'USER_REGISTERED', req.ip]
     );
 
-    global.logger.info(`New user registered: ${username}`);
+    global.logger.info(`New user registered successfully: ${username} (ID: ${user.id})`);
 
     res.status(201).json({
       message: 'User registered successfully',
@@ -88,23 +92,30 @@ router.post('/register', authLimiter, validateRegistration, async (req, res) => 
     });
   } catch (error) {
     global.logger.error('Registration error:', error);
-    res.status(500).json({ error: 'Failed to register user' });
+    global.logger.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      error: 'Failed to register user. Please try again later.',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
 // Login user
 router.post('/login', authLimiter, validateLogin, async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-
-  const { username, password, captchaToken } = req.body;
-
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      global.logger.warn('Login validation failed:', errors.array());
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { username, password, captchaToken } = req.body;
+    
+    global.logger.info(`Login attempt for username: ${username}`);
+
     // Simple captcha validation (in production, use Google reCAPTCHA or similar)
-    // For demo purposes, we accept any non-empty token
     if (!captchaToken || captchaToken.length < 5) {
+      global.logger.warn(`Login failed: Invalid captcha for ${username}`);
       return res.status(400).json({ error: 'Invalid captcha' });
     }
 
@@ -115,18 +126,21 @@ router.post('/login', authLimiter, validateLogin, async (req, res) => {
     );
 
     if (result.rows.length === 0) {
+      global.logger.warn(`Login failed: User not found - ${username}`);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     const user = result.rows[0];
 
     if (!user.is_active) {
+      global.logger.warn(`Login failed: Account disabled - ${username}`);
       return res.status(403).json({ error: 'Account is disabled' });
     }
 
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password_hash);
     if (!isValidPassword) {
+      global.logger.warn(`Login failed: Invalid password for ${username}`);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
@@ -159,7 +173,7 @@ router.post('/login', authLimiter, validateLogin, async (req, res) => {
       [user.id, 'USER_LOGIN', req.ip]
     );
 
-    global.logger.info(`User logged in: ${username}`);
+    global.logger.info(`User logged in successfully: ${username} (ID: ${user.id})`);
 
     res.json({
       message: 'Login successful',
@@ -173,7 +187,11 @@ router.post('/login', authLimiter, validateLogin, async (req, res) => {
     });
   } catch (error) {
     global.logger.error('Login error:', error);
-    res.status(500).json({ error: 'Login failed' });
+    global.logger.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      error: 'Login failed. Please try again later.',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
@@ -189,6 +207,7 @@ router.post('/logout', async (req, res) => {
     // Delete session
     await global.dbPool.query('DELETE FROM user_sessions WHERE token = $1', [token]);
     
+    global.logger.info('User logged out successfully');
     res.json({ message: 'Logout successful' });
   } catch (error) {
     global.logger.error('Logout error:', error);
@@ -220,6 +239,7 @@ router.get('/verify', async (req, res) => {
 
     res.json({ valid: true, userId: decoded.userId, username: decoded.username });
   } catch (error) {
+    global.logger.error('Token verification error:', error);
     res.status(401).json({ error: 'Invalid token' });
   }
 });

@@ -52,7 +52,21 @@ const Login = () => {
       navigate('/dashboard');
     } catch (err) {
       console.error('Login error:', err);
-      const errorMessage = err.response?.data?.error || err.message || 'Login failed';
+      console.error('Error response:', err.response);
+      
+      let errorMessage = 'Login failed';
+      
+      if (err.response?.data?.error) {
+        errorMessage = err.response.data.error;
+      } else if (err.response?.data?.errors) {
+        const errors = err.response.data.errors;
+        errorMessage = errors.map(e => e.msg).join(', ');
+      } else if (err.message) {
+        errorMessage = err.message;
+      } else if (err.code === 'ERR_NETWORK') {
+        errorMessage = 'Cannot connect to server. Please check if the backend is running.';
+      }
+      
       setError(errorMessage);
       setCaptchaVerified(false);
       setCaptchaToken('');
@@ -114,7 +128,7 @@ const Login = () => {
           </form>
 
           <p style={styles.link}>
-            Don't have an account? <Link to="/register">Register here</Link>
+            Don't have an account? <Link to="/register" style={styles.linkText}>Register here</Link>
           </p>
         </div>
       </div>
@@ -144,6 +158,11 @@ const styles = {
     marginTop: '20px',
     textAlign: 'center',
     color: 'var(--text-secondary)',
+  },
+  linkText: {
+    color: 'var(--accent-primary)',
+    textDecoration: 'none',
+    fontWeight: '600',
   },
 };
 
