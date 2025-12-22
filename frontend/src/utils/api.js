@@ -1,28 +1,7 @@
 import axios from 'axios';
 
-const getApiUrl = () => {
-  if (window.APP_CONFIG && window.APP_CONFIG.API_URL) {
-    console.log('Using runtime config API_URL:', window.APP_CONFIG.API_URL);
-    return window.APP_CONFIG.API_URL;
-  }
-  
-  if (process.env.REACT_APP_API_URL) {
-    console.log('Using build-time REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
-    return process.env.REACT_APP_API_URL;
-  }
-  
-  const protocol = window.location.protocol;
-  const hostname = window.location.hostname;
-  const fallbackUrl = `${protocol}//${hostname}:5000`;
-  console.log('Using fallback API_URL:', fallbackUrl);
-  return fallbackUrl;
-};
-
-const API_URL = getApiUrl();
-console.log('API URL configured as:', API_URL);
-
 const api = axios.create({
-  baseURL: `${API_URL}/api`,
+  baseURL: '/api',
   headers: {
     'Content-Type': 'application/json',
   },
