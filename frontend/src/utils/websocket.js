@@ -1,4 +1,23 @@
-const WS_URL = process.env.REACT_APP_WS_URL || 'ws://localhost:5000';
+const getWsUrl = () => {
+  if (window.APP_CONFIG && window.APP_CONFIG.WS_URL) {
+    console.log('Using runtime config WS_URL:', window.APP_CONFIG.WS_URL);
+    return window.APP_CONFIG.WS_URL;
+  }
+  
+  if (process.env.REACT_APP_WS_URL) {
+    console.log('Using build-time REACT_APP_WS_URL:', process.env.REACT_APP_WS_URL);
+    return process.env.REACT_APP_WS_URL;
+  }
+  
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const hostname = window.location.hostname;
+  const fallbackUrl = `${protocol}//${hostname}:5000`;
+  console.log('Using fallback WS_URL:', fallbackUrl);
+  return fallbackUrl;
+};
+
+const WS_URL = getWsUrl();
+console.log('WebSocket URL configured as:', WS_URL);
 
 class WebSocketClient {
   constructor() {
@@ -14,13 +33,14 @@ class WebSocketClient {
       return;
     }
 
-    this.ws = new WebSocket(`${WS_URL}/ws`);
+    const wsUrl = `${WS_URL}/ws`;
+    console.log('Connecting to WebSocket:', wsUrl);
+
+    this.ws = new WebSocket(wsUrl);
 
     this.ws.onopen = () => {
       console.log('WebSocket connected');
       this.reconnectAttempts = 0;
-      
-      // Authenticate
       this.send({ type: 'auth', token });
     };
 

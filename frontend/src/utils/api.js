@@ -1,6 +1,25 @@
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const getApiUrl = () => {
+  if (window.APP_CONFIG && window.APP_CONFIG.API_URL) {
+    console.log('Using runtime config API_URL:', window.APP_CONFIG.API_URL);
+    return window.APP_CONFIG.API_URL;
+  }
+  
+  if (process.env.REACT_APP_API_URL) {
+    console.log('Using build-time REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
+    return process.env.REACT_APP_API_URL;
+  }
+  
+  const protocol = window.location.protocol;
+  const hostname = window.location.hostname;
+  const fallbackUrl = `${protocol}//${hostname}:5000`;
+  console.log('Using fallback API_URL:', fallbackUrl);
+  return fallbackUrl;
+};
+
+const API_URL = getApiUrl();
+console.log('API URL configured as:', API_URL);
 
 const api = axios.create({
   baseURL: `${API_URL}/api`,
@@ -9,7 +28,6 @@ const api = axios.create({
   },
 });
 
-// Add auth token to requests
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
@@ -18,7 +36,6 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Auth endpoints
 export const register = (username, email, password) =>
   api.post('/auth/register', { username, email, password });
 
@@ -32,7 +49,6 @@ export const verifyToken = (token) =>
     headers: { Authorization: `Bearer ${token}` },
   }).then((res) => res.data);
 
-// User endpoints
 export const getUserProfile = () => api.get('/user/profile').then((res) => res.data);
 
 export const updateTheme = (theme) =>
@@ -41,7 +57,6 @@ export const updateTheme = (theme) =>
 export const getUserStatistics = () =>
   api.get('/user/statistics').then((res) => res.data);
 
-// Playground endpoints
 export const checkPrerequisites = (playgroundType) =>
   api.post('/playground/check-prerequisites', { playgroundType }).then((res) => res.data);
 

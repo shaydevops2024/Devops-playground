@@ -6,15 +6,11 @@ const WebSocket = require('ws');
 const { Pool } = require('pg');
 const winston = require('winston');
 
-// Import routes
 const authRoutes = require('./routes/auth');
 const playgroundRoutes = require('./routes/playground');
 const userRoutes = require('./routes/user');
-
-// Import WebSocket handler
 const { setupWebSocket } = require('./websocket/logStreamer');
 
-// Logger setup
 const logger = winston.createLogger({
   level: 'info',
   format: winston.format.combine(
@@ -30,7 +26,6 @@ const logger = winston.createLogger({
   ]
 });
 
-// Database connection pool
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://devops_admin:DevOps2024!Secure@postgres:5432/devops_playground',
   max: 20,
@@ -38,7 +33,6 @@ const pool = new Pool({
   connectionTimeoutMillis: 2000,
 });
 
-// Test database connection
 pool.query('SELECT NOW()', (err, res) => {
   if (err) {
     logger.error('Database connection failed:', err);
@@ -47,37 +41,39 @@ pool.query('SELECT NOW()', (err, res) => {
   logger.info('Database connected successfully at', res.rows[0].now);
 });
 
-// Make pool available to routes
 global.dbPool = pool;
 global.logger = logger;
 
-// Initialize Express app
 const app = express();
 const server = http.createServer(app);
 
-// CORS configuration
+const corsOrigin = process.env.CORS_ORIGIN || '*';
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000', 'http://0.0.0.0:3000'],
+  origin: corsOrigin === '*' ? true : corsOrigin.split(','),
   credentials: true,
-  optionsSuccessStatus: 200
+  optionsSuccessStatus: 200,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 };
 
-// Middleware
-app.use(helmet());
+logger.info('CORS configuration:', { origin: corsOrigin });
+
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Request logging middleware
 app.use((req, res, next) => {
   logger.info(`${req.method} ${req.path}`, {
     ip: req.ip,
-    userAgent: req.get('user-agent')
+    userAgent: req.get('user-agent'),
+    origin: req.get('origin')
   });
   next();
 });
 
-// Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ 
     status: 'healthy', 
@@ -86,17 +82,14 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/playground', playgroundRoutes);
 app.use('/api/user', userRoutes);
 
-// 404 handler
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
-// Error handling middleware
 app.use((err, req, res, next) => {
   logger.error('Unhandled error:', err);
   res.status(err.status || 500).json({
@@ -105,18 +98,16 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Setup WebSocket server
 const wss = new WebSocket.Server({ server, path: '/ws' });
 setupWebSocket(wss);
 
-// Start server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, '0.0.0.0', () => {
   logger.info(`🚀 DevOps Playground Backend running on port ${PORT}`);
   logger.info(`📡 WebSocket server ready at ws://0.0.0.0:${PORT}/ws`);
+  logger.info(`🌐 CORS enabled for: ${corsOrigin}`);
 });
 
-// Graceful shutdown
 process.on('SIGTERM', () => {
   logger.info('SIGTERM received, closing server gracefully...');
   server.close(() => {
