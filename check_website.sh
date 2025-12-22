@@ -24,7 +24,7 @@ echo ""
 
 # 5. Check backend logs
 echo "5. Backend logs (last 50 lines)..."
-docker-compose logs --tail=50 backend
+docker compose logs --tail=50 backend
 echo ""
 
 # 6. Check what IP frontend detected
@@ -47,4 +47,4 @@ echo ""
 echo "Common fixes:"
 echo "1. Open firewall: sudo ufw allow 5000"
 echo "2. Check AWS Security Group if on EC2"
-echo "3. Restart backend: docker-compose restart backend"
+echo "3. Restart backend: docker compose restart backend"
