@@ -1,0 +1,20 @@
+{
+  "name": "user-management",
+  "displayName": "Bulk User Management",
+  "description": "Create and remove 50 test users for load testing and database monitoring",
+  "difficulty": "beginner",
+  "estimatedTime": "2 minutes",
+  "tags": ["database", "users", "testing"],
+  "scripts": [
+    {
+      "name": "create",
+      "displayName": "Create 50 Test Users",
+      "file": "create.sh"
+    },
+    {
+      "name": "remove",
+      "displayName": "Remove Test Users",
+      "file": "remove.sh"
+    }
+  ]
+}

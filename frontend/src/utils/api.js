@@ -42,8 +42,8 @@ export const checkPrerequisites = (playgroundType) =>
 export const listScenarios = (playgroundType) =>
   api.get(`/playground/scenarios/${playgroundType}`).then((res) => res.data);
 
-export const executeScenario = (playgroundType, scenarioName) =>
-  api.post('/playground/execute', { playgroundType, scenarioName }).then((res) => res.data);
+export const executeScenario = (playgroundType, scenarioName, scriptName = null) =>
+  api.post('/playground/execute', { playgroundType, scenarioName, scriptName }).then((res) => res.data);
 
 export const getExecutionStatus = (executionId) =>
   api.get(`/playground/execution/${executionId}`).then((res) => res.data);

@@ -1,0 +1,20 @@
+{
+  "name": "rabbitmq-load",
+  "displayName": "RabbitMQ Load Test",
+  "description": "Generate high message throughput to test RabbitMQ performance and monitoring",
+  "difficulty": "intermediate",
+  "estimatedTime": "3 minutes",
+  "tags": ["monitoring", "rabbitmq", "messaging", "load-testing"],
+  "scripts": [
+    {
+      "name": "trigger",
+      "displayName": "Start Load Test",
+      "file": "trigger.sh"
+    },
+    {
+      "name": "fix",
+      "displayName": "Stop Load Test",
+      "file": "fix.sh"
+    }
+  ]
+}

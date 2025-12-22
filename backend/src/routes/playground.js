@@ -40,9 +40,9 @@ router.get('/scenarios/:playgroundType', async (req, res) => {
   }
 });
 
-// Execute a scenario
+// Execute a scenario or specific script
 router.post('/execute', async (req, res) => {
-  const { playgroundType, scenarioName } = req.body;
+  const { playgroundType, scenarioName, scriptName } = req.body;
   const userId = req.user.id;
 
   if (!playgroundType || !scenarioName) {
@@ -53,16 +53,18 @@ router.post('/execute', async (req, res) => {
     // Create execution record
     const execution = await global.dbPool.query(
       'INSERT INTO playground_executions (user_id, playground_type, scenario_name, status) VALUES ($1, $2, $3, $4) RETURNING id',
-      [userId, playgroundType, scenarioName, 'running']
+      [userId, playgroundType, `${scenarioName}${scriptName ? ':' + scriptName : ''}`, 'running']
     );
 
     const executionId = execution.rows[0].id;
 
     // Start execution (this will stream logs via WebSocket)
-    executeScenario(executionId, userId, playgroundType, scenarioName);
+    executeScenario(executionId, userId, playgroundType, scenarioName, scriptName);
 
     res.json({ 
-      message: 'Scenario execution started',
+      message: scriptName 
+        ? `Script '${scriptName}' execution started` 
+        : 'Scenario execution started',
       executionId 
     });
   } catch (error) {

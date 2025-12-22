@@ -1,0 +1,13 @@
+{
+  "dashboard": {
+    "title": "DevOps Playground - Complete Overview",
+    "tags": ["devops-playground"],
+    "timezone": "browser",
+    "panels": [],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "10s"
+  }
+}

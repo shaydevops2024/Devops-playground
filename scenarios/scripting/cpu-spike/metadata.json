@@ -1,0 +1,20 @@
+{
+  "name": "cpu-spike",
+  "displayName": "CPU Spike Simulation",
+  "description": "Simulate a CPU spike to test monitoring and observe metrics in Grafana",
+  "difficulty": "beginner",
+  "estimatedTime": "2 minutes",
+  "tags": ["monitoring", "performance", "cpu"],
+  "scripts": [
+    {
+      "name": "trigger",
+      "displayName": "Trigger CPU Spike",
+      "file": "trigger.sh"
+    },
+    {
+      "name": "fix",
+      "displayName": "Stop CPU Spike",
+      "file": "fix.sh"
+    }
+  ]
+}

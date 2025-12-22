@@ -20,7 +20,7 @@ docker volume rm devops-playground_postgres_data 2>/dev/null || true
 
 # Start only postgres
 echo -e "${YELLOW}Starting postgres...${NC}"
-docker-compose up -d postgres
+docker compose up -d postgres
 
 # Wait for postgres to be ready
 echo -e "${YELLOW}Waiting for postgres to be ready...${NC}"
@@ -39,7 +39,7 @@ if [ $? -eq 0 ]; then
     
     # Start all services
     echo -e "${YELLOW}Starting all services...${NC}"
-    docker-compose up -d
+    docker compose up -d
     
     echo ""
     echo -e "${GREEN}======================================"

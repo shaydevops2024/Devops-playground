@@ -1,21 +1,27 @@
 FROM node:18-alpine
 
-# Install required system dependencies
+# Install ALL system dependencies needed for scenarios
 RUN apk add --no-cache \
     python3 \
+    py3-pip \
     make \
     g++ \
     docker-cli \
     curl \
-    bash
+    bash \
+    bc \
+    postgresql-client
+
+# Create symlink for pip
+RUN ln -sf /usr/bin/pip3 /usr/bin/pip
 
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install Node.js dependencies
+RUN npm install --only=production
 
 # Copy application code
 COPY src/ ./src/
@@ -23,20 +29,8 @@ COPY src/ ./src/
 # Create logs directory
 RUN mkdir -p /app/logs
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001 && \
-    chown -R nodejs:nodejs /app
+# Expose ports
+EXPOSE 5000 9090
 
-# Switch to non-root user
-USER nodejs
-
-# Expose port
-EXPOSE 5000
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:5000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
-
-# Start application
-CMD ["node", "src/server.js"]
+# Start the application
+CMD ["npm", "start"]

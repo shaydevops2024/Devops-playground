@@ -91,10 +91,18 @@ async function listScenarios(playgroundType) {
           // Metadata file doesn't exist, use defaults
         }
 
-        scenarios.push({
-          name: file,
-          ...metadata
-        });
+        // For scripting scenarios, include available scripts
+        if (playgroundType === 'scripting' && metadata.scripts) {
+          scenarios.push({
+            name: file,
+            ...metadata
+          });
+        } else {
+          scenarios.push({
+            name: file,
+            ...metadata
+          });
+        }
       }
     }
 
@@ -106,7 +114,7 @@ async function listScenarios(playgroundType) {
 }
 
 // Execute a scenario
-async function executeScenario(executionId, userId, playgroundType, scenarioName) {
+async function executeScenario(executionId, userId, playgroundType, scenarioName, scriptName = null) {
   const scenarioPath = path.join('/app/scenarios', playgroundType, scenarioName);
   
   // Verify scenario exists
@@ -137,8 +145,22 @@ async function executeScenario(executionId, userId, playgroundType, scenarioName
       break;
     
     case 'scripting':
-      command = 'bash';
-      args = [path.join(scenarioPath, 'script.sh')];
+      // For scripting scenarios, execute specific script if provided
+      if (scriptName) {
+        const scriptPath = path.join(scenarioPath, `${scriptName}.sh`);
+        try {
+          await fs.access(scriptPath);
+          command = 'bash';
+          args = [scriptPath];
+        } catch (err) {
+          await updateExecution(executionId, 'failed', `Script ${scriptName}.sh not found`, 1);
+          return;
+        }
+      } else {
+        // Default to script.sh
+        command = 'bash';
+        args = [path.join(scenarioPath, 'script.sh')];
+      }
       break;
     
     case 'monitoring':
@@ -152,15 +174,29 @@ async function executeScenario(executionId, userId, playgroundType, scenarioName
   }
 
   // Start process
-  const process = spawn(command, args, {
+  const childProcess = spawn(command, args, {
     cwd: scenarioPath,
-    env: { ...process.env, EXECUTION_ID: executionId.toString() }
+    env: { 
+      ...process.env,
+      EXECUTION_ID: executionId.toString(),
+      // Pass database credentials for user management scripts
+      DB_HOST: 'postgres',
+      DB_PORT: '5432',
+      DB_NAME: 'devops_playground',
+      DB_USER: 'devops_admin',
+      DB_PASS: 'DevOps2024!Secure',
+      // Pass RabbitMQ credentials
+      RABBITMQ_HOST: 'rabbitmq',
+      RABBITMQ_PORT: '5672',
+      RABBITMQ_USER: 'admin',
+      RABBITMQ_PASS: 'DevOps2024!'
+    }
   });
 
   let allLogs = '';
 
   // Stream stdout
-  process.stdout.on('data', (data) => {
+  childProcess.stdout.on('data', (data) => {
     const logLine = data.toString();
     allLogs += logLine;
     broadcastToUser(userId, {
@@ -172,7 +208,7 @@ async function executeScenario(executionId, userId, playgroundType, scenarioName
   });
 
   // Stream stderr
-  process.stderr.on('data', (data) => {
+  childProcess.stderr.on('data', (data) => {
     const logLine = data.toString();
     allLogs += logLine;
     broadcastToUser(userId, {
@@ -184,10 +220,15 @@ async function executeScenario(executionId, userId, playgroundType, scenarioName
   });
 
   // Handle completion
-  process.on('close', async (code) => {
+  childProcess.on('close', async (code) => {
     const status = code === 0 ? 'success' : 'failed';
     
     await updateExecution(executionId, status, allLogs, code);
+    
+    // Track metrics
+    if (global.metrics && global.metrics.scenarioExecutions) {
+      global.metrics.scenarioExecutions.labels(playgroundType, scenarioName, status).inc();
+    }
     
     broadcastToUser(userId, {
       type: 'execution_complete',
@@ -200,8 +241,13 @@ async function executeScenario(executionId, userId, playgroundType, scenarioName
   });
 
   // Handle errors
-  process.on('error', async (error) => {
+  childProcess.on('error', async (error) => {
     await updateExecution(executionId, 'failed', error.message, 1);
+    
+    // Track metrics
+    if (global.metrics && global.metrics.scenarioExecutions) {
+      global.metrics.scenarioExecutions.labels(playgroundType, scenarioName, 'error').inc();
+    }
     
     broadcastToUser(userId, {
       type: 'execution_error',

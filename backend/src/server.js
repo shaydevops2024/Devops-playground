@@ -5,11 +5,61 @@ const http = require('http');
 const WebSocket = require('ws');
 const { Pool } = require('pg');
 const winston = require('winston');
+const promClient = require('prom-client');
 
 const authRoutes = require('./routes/auth');
 const playgroundRoutes = require('./routes/playground');
 const userRoutes = require('./routes/user');
 const { setupWebSocket } = require('./websocket/logStreamer');
+
+// Prometheus metrics setup
+const register = new promClient.Registry();
+promClient.collectDefaultMetrics({ register });
+
+// Custom metrics
+const httpRequestDuration = new promClient.Histogram({
+  name: 'http_request_duration_seconds',
+  help: 'Duration of HTTP requests in seconds',
+  labelNames: ['method', 'route', 'status_code'],
+  buckets: [0.1, 0.5, 1, 2, 5]
+});
+
+const httpRequestTotal = new promClient.Counter({
+  name: 'http_requests_total',
+  help: 'Total number of HTTP requests',
+  labelNames: ['method', 'route', 'status_code']
+});
+
+const dbConnectionsActive = new promClient.Gauge({
+  name: 'db_connections_active',
+  help: 'Number of active database connections'
+});
+
+const scenarioExecutions = new promClient.Counter({
+  name: 'scenario_executions_total',
+  help: 'Total number of scenario executions',
+  labelNames: ['playground_type', 'scenario_name', 'status']
+});
+
+const wsConnectionsActive = new promClient.Gauge({
+  name: 'websocket_connections_active',
+  help: 'Number of active WebSocket connections'
+});
+
+register.registerMetric(httpRequestDuration);
+register.registerMetric(httpRequestTotal);
+register.registerMetric(dbConnectionsActive);
+register.registerMetric(scenarioExecutions);
+register.registerMetric(wsConnectionsActive);
+
+// Make metrics available globally
+global.metrics = {
+  httpRequestDuration,
+  httpRequestTotal,
+  dbConnectionsActive,
+  scenarioExecutions,
+  wsConnectionsActive
+};
 
 const logger = winston.createLogger({
   level: 'info',
@@ -41,6 +91,11 @@ pool.query('SELECT NOW()', (err, res) => {
   logger.info('Database connected successfully at', res.rows[0].now);
 });
 
+// Update database connection metrics periodically
+setInterval(() => {
+  dbConnectionsActive.set(pool.totalCount);
+}, 5000);
+
 global.dbPool = pool;
 global.logger = logger;
 
@@ -65,6 +120,21 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Metrics middleware
+app.use((req, res, next) => {
+  const start = Date.now();
+  
+  res.on('finish', () => {
+    const duration = (Date.now() - start) / 1000;
+    const route = req.route ? req.route.path : req.path;
+    
+    httpRequestDuration.labels(req.method, route, res.statusCode).observe(duration);
+    httpRequestTotal.labels(req.method, route, res.statusCode).inc();
+  });
+  
+  next();
+});
+
 app.use((req, res, next) => {
   logger.info(`${req.method} ${req.path}`, {
     ip: req.ip,
@@ -80,6 +150,16 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     uptime: process.uptime()
   });
+});
+
+// Prometheus metrics endpoint
+app.get('/metrics', async (req, res) => {
+  try {
+    res.set('Content-Type', register.contentType);
+    res.end(await register.metrics());
+  } catch (err) {
+    res.status(500).end(err);
+  }
 });
 
 app.use('/api/auth', authRoutes);
@@ -101,11 +181,38 @@ app.use((err, req, res, next) => {
 const wss = new WebSocket.Server({ server, path: '/ws' });
 setupWebSocket(wss);
 
+// Track WebSocket connections
+wss.on('connection', () => {
+  wsConnectionsActive.inc();
+});
+
+wss.on('close', () => {
+  wsConnectionsActive.dec();
+});
+
 const PORT = process.env.PORT || 5000;
+const METRICS_PORT = process.env.METRICS_PORT || 9090;
+
+// Start main server
 server.listen(PORT, '0.0.0.0', () => {
   logger.info(`🚀 DevOps Playground Backend running on port ${PORT}`);
   logger.info(`📡 WebSocket server ready at ws://0.0.0.0:${PORT}/ws`);
   logger.info(`🌐 CORS enabled for: ${corsOrigin}`);
+});
+
+// Start metrics server on separate port
+const metricsApp = express();
+metricsApp.get('/metrics', async (req, res) => {
+  try {
+    res.set('Content-Type', register.contentType);
+    res.end(await register.metrics());
+  } catch (err) {
+    res.status(500).end(err);
+  }
+});
+
+metricsApp.listen(METRICS_PORT, '0.0.0.0', () => {
+  logger.info(`📊 Metrics endpoint available at http://0.0.0.0:${METRICS_PORT}/metrics`);
 });
 
 process.on('SIGTERM', () => {

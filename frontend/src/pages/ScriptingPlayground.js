@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Navbar from '../components/Navbar';
 import LoadingSpinner from '../components/LoadingSpinner';
 import LogViewer from '../components/LogViewer';
@@ -10,8 +10,9 @@ const ScriptingPlayground = () => {
   const [scenarios, setScenarios] = useState([]);
   const [selectedScenario, setSelectedScenario] = useState(null);
   const [logs, setLogs] = useState([]);
-  const [executing, setExecuting] = useState(false);
+  const [executingScripts, setExecutingScripts] = useState({});
   const [checkingPrereqs, setCheckingPrereqs] = useState(true);
+  const timeoutsRef = useRef({});
 
   useEffect(() => {
     checkScriptingPrerequisites();
@@ -19,6 +20,8 @@ const ScriptingPlayground = () => {
 
     return () => {
       wsClient.removeListener('scripting-playground');
+      // Clear all timeouts on unmount
+      Object.values(timeoutsRef.current).forEach(clearTimeout);
     };
   }, []);
 
@@ -37,7 +40,23 @@ const ScriptingPlayground = () => {
           },
         ]);
       } else if (message.type === 'execution_complete') {
-        setExecuting(false);
+        // Clear executing state for this execution
+        setExecutingScripts((prev) => {
+          const newState = { ...prev };
+          // Find and clear the execution key that matches this executionId
+          Object.keys(newState).forEach(key => {
+            if (newState[key] === message.executionId) {
+              delete newState[key];
+              // Clear timeout for this execution
+              if (timeoutsRef.current[key]) {
+                clearTimeout(timeoutsRef.current[key]);
+                delete timeoutsRef.current[key];
+              }
+            }
+          });
+          return newState;
+        });
+        
         setLogs((prev) => [
           ...prev,
           {
@@ -46,6 +65,22 @@ const ScriptingPlayground = () => {
             type: message.status === 'success' ? 'success' : 'stderr',
           },
         ]);
+      } else if (message.type === 'execution_error') {
+        // Clear executing state on error too
+        setExecutingScripts((prev) => {
+          const newState = { ...prev };
+          Object.keys(newState).forEach(key => {
+            if (newState[key] === message.executionId) {
+              delete newState[key];
+              // Clear timeout for this execution
+              if (timeoutsRef.current[key]) {
+                clearTimeout(timeoutsRef.current[key]);
+                delete timeoutsRef.current[key];
+              }
+            }
+          });
+          return newState;
+        });
       }
     });
   };
@@ -66,22 +101,61 @@ const ScriptingPlayground = () => {
     }
   };
 
-  const handleExecuteScenario = async () => {
+  const handleExecuteScript = async (scriptName) => {
     if (!selectedScenario) return;
 
-    setExecuting(true);
+    const executionKey = `${selectedScenario.name}-${scriptName}`;
+    
+    // Prevent double-execution
+    if (executingScripts[executionKey]) {
+      return;
+    }
+
+    // Add to logs
     setLogs([
       {
         timestamp: new Date().toLocaleTimeString(),
-        message: `Starting execution of scenario: ${selectedScenario}`,
+        message: `Starting execution: ${selectedScenario.displayName || selectedScenario.name} - ${scriptName}`,
         type: 'info',
       },
     ]);
 
     try {
-      await executeScenario('scripting', selectedScenario);
+      const response = await executeScenario('scripting', selectedScenario.name, scriptName);
+      
+      // Store execution ID for tracking
+      setExecutingScripts((prev) => ({
+        ...prev,
+        [executionKey]: response.executionId
+      }));
+
+      // SAFETY MECHANISM: Auto-clear after 5 minutes if websocket doesn't clear it
+      // This ensures buttons never get permanently stuck
+      timeoutsRef.current[executionKey] = setTimeout(() => {
+        console.log(`Auto-clearing execution state for ${executionKey} after timeout`);
+        setExecutingScripts((prev) => {
+          const newState = { ...prev };
+          delete newState[executionKey];
+          return newState;
+        });
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date().toLocaleTimeString(),
+            message: `⚠️ Execution timed out or completed without proper notification`,
+            type: 'stderr',
+          },
+        ]);
+      }, 300000); // 5 minutes
+
     } catch (error) {
-      setExecuting(false);
+      // Clear executing state on error
+      setExecutingScripts((prev) => {
+        const newState = { ...prev };
+        delete newState[executionKey];
+        return newState;
+      });
+      
       setLogs((prev) => [
         ...prev,
         {
@@ -91,6 +165,27 @@ const ScriptingPlayground = () => {
         },
       ]);
     }
+  };
+
+  const isScriptExecuting = (scriptName) => {
+    if (!selectedScenario) return false;
+    const executionKey = `${selectedScenario.name}-${scriptName}`;
+    return !!executingScripts[executionKey];
+  };
+
+  // Manual clear function for debugging (optional)
+  const clearAllExecutingStates = () => {
+    setExecutingScripts({});
+    Object.values(timeoutsRef.current).forEach(clearTimeout);
+    timeoutsRef.current = {};
+    setLogs((prev) => [
+      ...prev,
+      {
+        timestamp: new Date().toLocaleTimeString(),
+        message: '🔄 All execution states cleared',
+        type: 'info',
+      },
+    ]);
   };
 
   if (checkingPrereqs) {
@@ -151,26 +246,67 @@ const ScriptingPlayground = () => {
                   <div
                     key={scenario.name}
                     className={`scenario-card ${
-                      selectedScenario === scenario.name ? 'active' : ''
+                      selectedScenario?.name === scenario.name ? 'active' : ''
                     }`}
-                    onClick={() => setSelectedScenario(scenario.name)}
+                    onClick={() => setSelectedScenario(scenario)}
                   >
-                    <h3>{scenario.name}</h3>
+                    <h3>{scenario.displayName || scenario.name}</h3>
                     <p>{scenario.description}</p>
+                    {scenario.difficulty && (
+                      <span className={`badge badge-${scenario.difficulty}`}>
+                        {scenario.difficulty}
+                      </span>
+                    )}
+                    {scenario.estimatedTime && (
+                      <span style={{ fontSize: '12px', color: 'var(--text-secondary)', marginLeft: '8px' }}>
+                        ⏱️ {scenario.estimatedTime}
+                      </span>
+                    )}
                   </div>
                 ))
               )}
             </div>
-            {selectedScenario && (
-              <div className="execution-controls">
-                <button
-                  className="btn btn-primary"
-                  onClick={handleExecuteScenario}
-                  disabled={executing}
-                  style={{ width: '100%' }}
-                >
-                  {executing ? 'Executing...' : 'Execute Scenario'}
-                </button>
+            
+            {/* Script execution buttons */}
+            {selectedScenario && selectedScenario.scripts && (
+              <div className="execution-controls" style={{ marginTop: '20px' }}>
+                <h3 style={{ fontSize: '16px', marginBottom: '12px' }}>Available Scripts:</h3>
+                {selectedScenario.scripts.map((script) => {
+                  const isExecuting = isScriptExecuting(script.name);
+                  return (
+                    <button
+                      key={script.name}
+                      className="btn btn-primary"
+                      onClick={() => handleExecuteScript(script.name)}
+                      disabled={isExecuting}
+                      style={{ 
+                        width: '100%', 
+                        marginBottom: '8px',
+                        opacity: isExecuting ? 0.6 : 1,
+                        cursor: isExecuting ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      {isExecuting ? 'Executing...' : (script.displayName || script.name)}
+                    </button>
+                  );
+                })}
+                
+                {/* Debug button - only show if any scripts are executing */}
+                {Object.keys(executingScripts).length > 0 && (
+                  <button
+                    className="btn"
+                    onClick={clearAllExecutingStates}
+                    style={{ 
+                      width: '100%',
+                      marginTop: '12px',
+                      background: '#6c757d',
+                      color: 'white',
+                      fontSize: '12px'
+                    }}
+                  >
+                    🔄 Reset All Buttons (Debug)
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -183,6 +319,43 @@ const ScriptingPlayground = () => {
                 {prerequisites.version}
               </div>
             </div>
+            
+            {selectedScenario && (
+              <div style={{ 
+                padding: '16px', 
+                background: 'var(--card-bg)', 
+                borderRadius: '8px',
+                marginBottom: '16px'
+              }}>
+                <h2 style={{ fontSize: '20px', marginBottom: '8px' }}>
+                  {selectedScenario.displayName || selectedScenario.name}
+                </h2>
+                <p style={{ color: 'var(--text-secondary)', marginBottom: '12px' }}>
+                  {selectedScenario.description}
+                </p>
+                {selectedScenario.tags && (
+                  <div>
+                    {selectedScenario.tags.map((tag) => (
+                      <span 
+                        key={tag}
+                        style={{
+                          display: 'inline-block',
+                          padding: '4px 12px',
+                          background: 'var(--primary-color)',
+                          color: 'white',
+                          borderRadius: '12px',
+                          fontSize: '12px',
+                          marginRight: '8px'
+                        }}
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            
             <LogViewer logs={logs} />
           </div>
         </div>
