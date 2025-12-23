@@ -5,7 +5,7 @@
   "timezone": "browser",
   "schemaVersion": 38,
   "version": 1,
-  "refresh": "30s",
+  "refresh": "10s",
   "time": {
     "from": "now-6h",
     "to": "now"
@@ -17,14 +17,31 @@
       "title": "Total Executions",
       "targets": [
         {
-          "expr": "sum(devops_playground_executions_total)",
-          "refId": "A"
+          "expr": "sum(devops_playground_executions_total) OR on() vector(0)",
+          "refId": "A",
+          "instant": true
         }
       ],
       "gridPos": { "h": 5, "w": 6, "x": 0, "y": 0 },
       "options": {
         "colorMode": "background",
-        "graphMode": "none"
+        "graphMode": "none",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"]
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "blue" }
+            ]
+          },
+          "unit": "short",
+          "decimals": 0
+        }
       }
     },
     {
@@ -33,23 +50,30 @@
       "title": "Successful",
       "targets": [
         {
-          "expr": "sum(devops_playground_executions_successful)",
-          "refId": "A"
+          "expr": "sum(devops_playground_executions_successful) OR on() vector(0)",
+          "refId": "A",
+          "instant": true
         }
       ],
       "gridPos": { "h": 5, "w": 6, "x": 6, "y": 0 },
       "options": {
         "colorMode": "background",
-        "graphMode": "none"
+        "graphMode": "none",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"]
+        }
       },
       "fieldConfig": {
         "defaults": {
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": 0, "color": "green" }
+              { "value": null, "color": "green" }
             ]
-          }
+          },
+          "unit": "short",
+          "decimals": 0
         }
       }
     },
@@ -59,23 +83,30 @@
       "title": "Failed",
       "targets": [
         {
-          "expr": "sum(devops_playground_executions_failed)",
-          "refId": "A"
+          "expr": "sum(devops_playground_executions_failed) OR on() vector(0)",
+          "refId": "A",
+          "instant": true
         }
       ],
       "gridPos": { "h": 5, "w": 6, "x": 12, "y": 0 },
       "options": {
         "colorMode": "background",
-        "graphMode": "none"
+        "graphMode": "none",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"]
+        }
       },
       "fieldConfig": {
         "defaults": {
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": 0, "color": "red" }
+              { "value": null, "color": "red" }
             ]
-          }
+          },
+          "unit": "short",
+          "decimals": 0
         }
       }
     },
@@ -85,87 +116,132 @@
       "title": "Currently Running",
       "targets": [
         {
-          "expr": "devops_playground_active_executions",
-          "refId": "A"
+          "expr": "devops_playground_active_executions OR on() vector(0)",
+          "refId": "A",
+          "instant": true
         }
       ],
       "gridPos": { "h": 5, "w": 6, "x": 18, "y": 0 },
       "options": {
         "colorMode": "background",
-        "graphMode": "none"
+        "graphMode": "none",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"]
+        }
       },
       "fieldConfig": {
         "defaults": {
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": 0, "color": "blue" }
+              { "value": null, "color": "blue" }
             ]
-          }
+          },
+          "unit": "short",
+          "decimals": 0
         }
       }
     },
     {
       "id": 5,
-      "type": "graph",
+      "type": "timeseries",
       "title": "Execution Rate",
       "targets": [
         {
-          "expr": "rate(devops_playground_executions_total[5m])",
+          "expr": "sum(rate(devops_playground_executions_total[5m])) OR on() vector(0)",
           "refId": "A",
           "legendFormat": "Executions/sec"
         }
       ],
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 5 }
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 5 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "auto"
+          }
+        }
+      }
     },
     {
       "id": 6,
-      "type": "graph",
+      "type": "timeseries",
       "title": "Success vs Failed",
       "targets": [
         {
-          "expr": "sum(rate(devops_playground_executions_successful[5m]))",
+          "expr": "sum(devops_playground_executions_successful) OR on() vector(0)",
           "refId": "A",
           "legendFormat": "Successful"
         },
         {
-          "expr": "sum(rate(devops_playground_executions_failed[5m]))",
+          "expr": "sum(devops_playground_executions_failed) OR on() vector(0)",
           "refId": "B",
           "legendFormat": "Failed"
         }
       ],
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 5 }
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 5 },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 10
+          }
+        }
+      }
     },
     {
       "id": 7,
-      "type": "graph",
+      "type": "timeseries",
       "title": "Executions by Playground",
       "targets": [
         {
-          "expr": "sum by (playground) (devops_playground_executions_total)",
+          "expr": "sum by (playground) (devops_playground_executions_total) OR on() vector(0)",
           "refId": "A",
           "legendFormat": "{{playground}}"
         }
       ],
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 13 }
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 13 },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 10
+          }
+        }
+      }
     },
     {
       "id": 8,
-      "type": "graph",
-      "title": "Execution Duration",
+      "type": "timeseries",
+      "title": "Execution Duration (95th percentile)",
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, rate(devops_playground_execution_duration_seconds_bucket[5m]))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(devops_playground_execution_duration_seconds_bucket[5m]))) OR on() vector(0)",
           "refId": "A",
           "legendFormat": "95th percentile"
-        },
-        {
-          "expr": "histogram_quantile(0.50, rate(devops_playground_execution_duration_seconds_bucket[5m]))",
-          "refId": "B",
-          "legendFormat": "50th percentile"
         }
       ],
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 13 }
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 13 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 10
+          }
+        }
+      }
     }
   ]
 }

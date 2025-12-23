@@ -3,7 +3,7 @@ const promClient = require('prom-client');
 // Create registry
 const register = new promClient.Registry();
 
-// Collect default metrics (CPU, memory, etc.)
+// Collect default metrics
 promClient.collectDefaultMetrics({ register });
 
 // ============= DevOps Playground Metrics =============
@@ -21,7 +21,7 @@ const usersActive = new promClient.Gauge({
   registers: [register]
 });
 
-// Executions - Use Counters properly
+// Executions
 const executionsTotal = new promClient.Counter({
   name: 'devops_playground_executions_total',
   help: 'Total number of scenario executions',
@@ -87,27 +87,11 @@ const dbConnections = new promClient.Gauge({
   registers: [register]
 });
 
-const dbQueryDuration = new promClient.Histogram({
-  name: 'devops_playground_db_query_duration_seconds',
-  help: 'Database query duration',
-  labelNames: ['query_type'],
-  buckets: [0.001, 0.01, 0.05, 0.1, 0.5, 1],
-  registers: [register]
-});
-
-// ============= Counter Tracking (for initialization) =============
-let lastExecutionCounts = {
-  total: 0,
-  successful: 0,
-  failed: 0
-};
-
-// ============= Helper Functions =============
-
 // Initialize counters from database
 async function initializeCounters(pool) {
   try {
-    // Get total executions from database
+    console.log('🔄 Initializing metrics from database...');
+    
     const totalResult = await pool.query(`
       SELECT 
         playground_type,
@@ -118,21 +102,14 @@ async function initializeCounters(pool) {
       GROUP BY playground_type, scenario_name, status
     `);
 
-    // Initialize counters with existing data
     totalResult.rows.forEach(row => {
       const count = parseInt(row.count);
       const playground = row.playground_type || 'unknown';
       const scenario = row.scenario_name || 'unknown';
       const status = row.status || 'unknown';
 
-      // Increment counter to match database
-      for (let i = 0; i < count; i++) {
-        executionsTotal.labels(playground, scenario, status).inc(0);
-      }
-      // Set to actual count
       executionsTotal.labels(playground, scenario, status).inc(count);
 
-      // Track successful/failed
       if (status === 'completed' || status === 'success') {
         executionsSuccessful.labels(playground, scenario).inc(count);
       } else if (status === 'failed' || status === 'error') {
@@ -140,54 +117,40 @@ async function initializeCounters(pool) {
       }
     });
 
-    console.log('✅ Counters initialized from database');
+    console.log(`✅ Initialized ${totalResult.rows.length} execution metrics`);
   } catch (error) {
-    console.error('❌ Error initializing counters:', error);
+    console.error('❌ Error initializing counters:', error.message);
   }
 }
 
-// Update user metrics from database
+// Update user metrics
 async function updateUserMetrics(pool) {
   try {
-    // Total users
     const totalResult = await pool.query('SELECT COUNT(*) as count FROM users');
-    const totalUsers = parseInt(totalResult.rows[0].count);
-    usersTotal.set(totalUsers);
+    usersTotal.set(parseInt(totalResult.rows[0].count));
 
-    // Active users (logged in or executed within last 24 hours)
     const activeResult = await pool.query(`
       SELECT COUNT(DISTINCT user_id) as count 
       FROM executions 
       WHERE started_at > NOW() - INTERVAL '24 hours'
     `);
-    const activeUsers = parseInt(activeResult.rows[0].count || 0);
-    usersActive.set(activeUsers);
-
-    console.log(`📊 Users - Total: ${totalUsers}, Active: ${activeUsers}`);
+    usersActive.set(parseInt(activeResult.rows[0].count || 0));
   } catch (error) {
-    console.error('Error updating user metrics:', error);
-    // Set to 0 if error
-    usersTotal.set(0);
-    usersActive.set(0);
+    console.error('Error updating user metrics:', error.message);
   }
 }
 
-// Update execution metrics from database
+// Update execution metrics
 async function updateExecutionMetrics(pool) {
   try {
-    // Active executions
     const activeResult = await pool.query(`
       SELECT COUNT(*) as count 
       FROM executions 
       WHERE status = 'running'
     `);
-    const active = parseInt(activeResult.rows[0].count || 0);
-    activeExecutions.set(active);
-
-    console.log(`📊 Active Executions: ${active}`);
+    activeExecutions.set(parseInt(activeResult.rows[0].count || 0));
   } catch (error) {
-    console.error('Error updating execution metrics:', error);
-    activeExecutions.set(0);
+    console.error('Error updating execution metrics:', error.message);
   }
 }
 
@@ -233,39 +196,30 @@ function trackWebSocketConnection(delta) {
   }
 }
 
-// Update database connection count
+// Update database connections
 function updateDbConnections(count) {
   dbConnections.set(count);
 }
 
-// Track database query
-function trackDbQuery(queryType, duration) {
-  dbQueryDuration.labels(queryType).observe(duration);
-}
-
-// Start periodic metrics updates
+// Start metrics collection
 function startMetricsCollection(pool) {
   console.log('🚀 Starting metrics collection...');
 
-  // Initialize counters immediately
-  initializeCounters(pool);
+  setTimeout(() => {
+    initializeCounters(pool);
+    updateUserMetrics(pool);
+    updateExecutionMetrics(pool);
+  }, 2000);
 
-  // Update user metrics immediately
-  updateUserMetrics(pool);
-  updateExecutionMetrics(pool);
-
-  // Update metrics every 10 seconds (faster than before)
   setInterval(async () => {
     await updateUserMetrics(pool);
     await updateExecutionMetrics(pool);
-    
-    // Update DB connections
     if (pool && pool.totalCount !== undefined) {
       updateDbConnections(pool.totalCount);
     }
-  }, 10000); // 10 seconds instead of 30
+  }, 10000);
 
-  console.log('✅ Metrics collection started (updates every 10s)');
+  console.log('✅ Metrics collection started');
 }
 
 module.exports = {
@@ -281,17 +235,12 @@ module.exports = {
     httpRequestsTotal,
     httpRequestDuration,
     websocketConnections,
-    dbConnections,
-    dbQueryDuration
+    dbConnections
   },
   trackExecutionStart,
   trackExecutionComplete,
   trackHttpRequest,
   trackWebSocketConnection,
   updateDbConnections,
-  trackDbQuery,
-  startMetricsCollection,
-  updateUserMetrics,
-  updateExecutionMetrics,
-  initializeCounters
+  startMetricsCollection
 };

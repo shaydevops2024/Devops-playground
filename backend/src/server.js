@@ -42,7 +42,7 @@ pool.query('SELECT NOW()', (err, res) => {
   logger.info('Database connected successfully at', res.rows[0].now);
 });
 
-// Make metrics and pool available globally
+// Make available globally
 global.dbPool = pool;
 global.logger = logger;
 global.metrics = metricsModule.metrics;
