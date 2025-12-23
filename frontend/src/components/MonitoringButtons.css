@@ -114,3 +114,64 @@
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
   }
 }
+
+/* Remove page-style spacing in sidebar */
+.playground-main .monitoring-buttons-container {
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* Force single-column layout */
+.playground-main .monitoring-buttons-grid {
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-bottom: 0;
+}
+
+/* Compact card layout */
+.playground-main .monitoring-button {
+  padding: 8px;
+  gap: 8px;
+  border-radius: 10px;
+}
+
+/* Reduce icon size */
+.playground-main .monitoring-button-icon {
+  font-size: 22px;
+}
+
+/* Allow content to shrink */
+.playground-main .monitoring-button-content {
+  min-width: 0;
+}
+
+/* Compact typography */
+.playground-main .monitoring-button-content h3 {
+  font-size: 13px;
+  margin-bottom: 2px;
+}
+
+.playground-main .monitoring-button-content p {
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+
+/* Compact URL pill */
+.playground-main .monitoring-button-url {
+  font-size: 10px;
+  padding: 1px 6px;
+}
+
+/* Prevent overflow in narrow column */
+.playground-main .monitoring-button-content h3,
+.playground-main .monitoring-button-content p,
+.playground-main .monitoring-button-url {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* Disable hover lift to save vertical space */
+.playground-main .monitoring-button:hover {
+  transform: none;
+}
