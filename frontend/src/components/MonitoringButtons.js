@@ -23,7 +23,7 @@ const MonitoringButtons = () => {
     },
     {
       name: 'Loki',
-      url: `http://${hostname}:3001/explore`,
+      url: `http://${hostname}:3001/explore?orgId=1&left=%7B%22datasource%22:%22loki%22,%22queries%22:%5B%7B%22refId%22:%22A%22,%22expr%22:%22%7Bjob%3D%5C%22backend%5C%22%7D%22%7D%5D,%22range%22:%7B%22from%22:%22now-1h%22,%22to%22:%22now%22%7D%7D`,
       description: 'Search and analyze logs',
       icon: '📝',
       color: '#F46800'
