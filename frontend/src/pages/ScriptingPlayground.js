@@ -1,17 +1,22 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import LoadingSpinner from '../components/LoadingSpinner';
 import LogViewer from '../components/LogViewer';
+import MonitoringButtons from '../components/MonitoringButtons';
 import { checkPrerequisites, listScenarios, executeScenario } from '../utils/api';
 import { wsClient } from '../utils/websocket';
+import { FaHome, FaArrowLeft } from 'react-icons/fa';
 
 const ScriptingPlayground = () => {
+  const navigate = useNavigate();
   const [prerequisites, setPrerequisites] = useState(null);
   const [scenarios, setScenarios] = useState([]);
   const [selectedScenario, setSelectedScenario] = useState(null);
   const [logs, setLogs] = useState([]);
   const [executingScripts, setExecutingScripts] = useState({});
   const [checkingPrereqs, setCheckingPrereqs] = useState(true);
+  const [executionStartTime, setExecutionStartTime] = useState(null);
   const timeoutsRef = useRef({});
 
   useEffect(() => {
@@ -20,7 +25,6 @@ const ScriptingPlayground = () => {
 
     return () => {
       wsClient.removeListener('scripting-playground');
-      // Clear all timeouts on unmount
       Object.values(timeoutsRef.current).forEach(clearTimeout);
     };
   }, []);
@@ -40,14 +44,11 @@ const ScriptingPlayground = () => {
           },
         ]);
       } else if (message.type === 'execution_complete') {
-        // Clear executing state for this execution
         setExecutingScripts((prev) => {
           const newState = { ...prev };
-          // Find and clear the execution key that matches this executionId
           Object.keys(newState).forEach(key => {
             if (newState[key] === message.executionId) {
               delete newState[key];
-              // Clear timeout for this execution
               if (timeoutsRef.current[key]) {
                 clearTimeout(timeoutsRef.current[key]);
                 delete timeoutsRef.current[key];
@@ -66,13 +67,11 @@ const ScriptingPlayground = () => {
           },
         ]);
       } else if (message.type === 'execution_error') {
-        // Clear executing state on error too
         setExecutingScripts((prev) => {
           const newState = { ...prev };
           Object.keys(newState).forEach(key => {
             if (newState[key] === message.executionId) {
               delete newState[key];
-              // Clear timeout for this execution
               if (timeoutsRef.current[key]) {
                 clearTimeout(timeoutsRef.current[key]);
                 delete timeoutsRef.current[key];
@@ -106,12 +105,12 @@ const ScriptingPlayground = () => {
 
     const executionKey = `${selectedScenario.name}-${scriptName}`;
     
-    // Prevent double-execution
     if (executingScripts[executionKey]) {
       return;
     }
 
-    // Add to logs
+    setExecutionStartTime(new Date());
+
     setLogs([
       {
         timestamp: new Date().toLocaleTimeString(),
@@ -123,14 +122,11 @@ const ScriptingPlayground = () => {
     try {
       const response = await executeScenario('scripting', selectedScenario.name, scriptName);
       
-      // Store execution ID for tracking
       setExecutingScripts((prev) => ({
         ...prev,
         [executionKey]: response.executionId
       }));
 
-      // SAFETY MECHANISM: Auto-clear after 5 minutes if websocket doesn't clear it
-      // This ensures buttons never get permanently stuck
       timeoutsRef.current[executionKey] = setTimeout(() => {
         console.log(`Auto-clearing execution state for ${executionKey} after timeout`);
         setExecutingScripts((prev) => {
@@ -146,10 +142,9 @@ const ScriptingPlayground = () => {
             type: 'stderr',
           },
         ]);
-      }, 300000); // 5 minutes
+      }, 300000);
 
     } catch (error) {
-      // Clear executing state on error
       setExecutingScripts((prev) => {
         const newState = { ...prev };
         delete newState[executionKey];
@@ -173,7 +168,10 @@ const ScriptingPlayground = () => {
     return !!executingScripts[executionKey];
   };
 
-  // Manual clear function for debugging (optional)
+  const isAnyScriptExecuting = () => {
+    return Object.keys(executingScripts).length > 0;
+  };
+
   const clearAllExecutingStates = () => {
     setExecutingScripts({});
     Object.values(timeoutsRef.current).forEach(clearTimeout);
@@ -186,6 +184,16 @@ const ScriptingPlayground = () => {
         type: 'info',
       },
     ]);
+  };
+
+  const handleBackToScenarios = () => {
+    setSelectedScenario(null);
+    setLogs([]);
+    setExecutionStartTime(null);
+  };
+
+  const handleGoHome = () => {
+    navigate('/dashboard');
   };
 
   if (checkingPrereqs) {
@@ -232,8 +240,46 @@ const ScriptingPlayground = () => {
     <div>
       <Navbar />
       <div className="container">
+        {/* Back/Home buttons */}
+        <div style={{ 
+          display: 'flex', 
+          gap: '12px', 
+          marginBottom: '20px',
+          flexWrap: 'wrap'
+        }}>
+          <button
+            className="btn btn-secondary"
+            onClick={handleGoHome}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 20px'
+            }}
+          >
+            <FaHome size={16} />
+            Home
+          </button>
+          
+          {selectedScenario && (
+            <button
+              className="btn btn-secondary"
+              onClick={handleBackToScenarios}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 20px'
+              }}
+            >
+              <FaArrowLeft size={16} />
+              Back to Scenarios
+            </button>
+          )}
+        </div>
+
         <div className="playground-container">
-          {/* Sidebar */}
+          {/* Left Sidebar - Scripts */}
           <div className="playground-sidebar">
             <h2>Scripting Scenarios</h2>
             <div className="scenario-list">
@@ -291,7 +337,6 @@ const ScriptingPlayground = () => {
                   );
                 })}
                 
-                {/* Debug button - only show if any scripts are executing */}
                 {Object.keys(executingScripts).length > 0 && (
                   <button
                     className="btn"
@@ -311,8 +356,8 @@ const ScriptingPlayground = () => {
             )}
           </div>
 
-          {/* Main Area */}
-          <div className="playground-main">
+          {/* Main Area - Logs and Right Sidebar */}
+          <div className="playground-main" style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
             <div className="playground-header">
               <h1>Scripting Playground</h1>
               <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
@@ -355,8 +400,21 @@ const ScriptingPlayground = () => {
                 )}
               </div>
             )}
-            
-            <LogViewer logs={logs} />
+
+            {/* Logs and Monitoring side by side */}
+            <div style={{ display: 'flex', gap: '16px', flex: 1 }}>
+              {/* Logs - Left side */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <LogViewer logs={logs} />
+              </div>
+
+              {/* Monitoring buttons - Right side */}
+              {selectedScenario && (
+                <div style={{ width: '200px', flexShrink: 0 }}>
+                  <MonitoringButtons executionStartTime={executionStartTime} />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

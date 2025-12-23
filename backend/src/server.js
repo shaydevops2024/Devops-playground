@@ -5,61 +5,12 @@ const http = require('http');
 const WebSocket = require('ws');
 const { Pool } = require('pg');
 const winston = require('winston');
-const promClient = require('prom-client');
 
 const authRoutes = require('./routes/auth');
 const playgroundRoutes = require('./routes/playground');
 const userRoutes = require('./routes/user');
 const { setupWebSocket } = require('./websocket/logStreamer');
-
-// Prometheus metrics setup
-const register = new promClient.Registry();
-promClient.collectDefaultMetrics({ register });
-
-// Custom metrics
-const httpRequestDuration = new promClient.Histogram({
-  name: 'http_request_duration_seconds',
-  help: 'Duration of HTTP requests in seconds',
-  labelNames: ['method', 'route', 'status_code'],
-  buckets: [0.1, 0.5, 1, 2, 5]
-});
-
-const httpRequestTotal = new promClient.Counter({
-  name: 'http_requests_total',
-  help: 'Total number of HTTP requests',
-  labelNames: ['method', 'route', 'status_code']
-});
-
-const dbConnectionsActive = new promClient.Gauge({
-  name: 'db_connections_active',
-  help: 'Number of active database connections'
-});
-
-const scenarioExecutions = new promClient.Counter({
-  name: 'scenario_executions_total',
-  help: 'Total number of scenario executions',
-  labelNames: ['playground_type', 'scenario_name', 'status']
-});
-
-const wsConnectionsActive = new promClient.Gauge({
-  name: 'websocket_connections_active',
-  help: 'Number of active WebSocket connections'
-});
-
-register.registerMetric(httpRequestDuration);
-register.registerMetric(httpRequestTotal);
-register.registerMetric(dbConnectionsActive);
-register.registerMetric(scenarioExecutions);
-register.registerMetric(wsConnectionsActive);
-
-// Make metrics available globally
-global.metrics = {
-  httpRequestDuration,
-  httpRequestTotal,
-  dbConnectionsActive,
-  scenarioExecutions,
-  wsConnectionsActive
-};
+const metricsModule = require('./services/metrics');
 
 const logger = winston.createLogger({
   level: 'info',
@@ -91,13 +42,15 @@ pool.query('SELECT NOW()', (err, res) => {
   logger.info('Database connected successfully at', res.rows[0].now);
 });
 
-// Update database connection metrics periodically
-setInterval(() => {
-  dbConnectionsActive.set(pool.totalCount);
-}, 5000);
-
+// Make metrics and pool available globally
 global.dbPool = pool;
 global.logger = logger;
+global.metrics = metricsModule.metrics;
+global.trackExecutionStart = metricsModule.trackExecutionStart;
+global.trackExecutionComplete = metricsModule.trackExecutionComplete;
+
+// Start metrics collection
+metricsModule.startMetricsCollection(pool);
 
 const app = express();
 const server = http.createServer(app);
@@ -120,16 +73,20 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Metrics middleware
+// HTTP Metrics middleware
 app.use((req, res, next) => {
   const start = Date.now();
   
   res.on('finish', () => {
     const duration = (Date.now() - start) / 1000;
-    const route = req.route ? req.route.path : req.path;
+    const path = req.route ? req.route.path : req.path;
     
-    httpRequestDuration.labels(req.method, route, res.statusCode).observe(duration);
-    httpRequestTotal.labels(req.method, route, res.statusCode).inc();
+    metricsModule.trackHttpRequest(
+      req.method,
+      path,
+      res.statusCode.toString(),
+      duration
+    );
   });
   
   next();
@@ -155,8 +112,8 @@ app.get('/health', (req, res) => {
 // Prometheus metrics endpoint
 app.get('/metrics', async (req, res) => {
   try {
-    res.set('Content-Type', register.contentType);
-    res.end(await register.metrics());
+    res.set('Content-Type', metricsModule.register.contentType);
+    res.end(await metricsModule.register.metrics());
   } catch (err) {
     res.status(500).end(err);
   }
@@ -183,11 +140,11 @@ setupWebSocket(wss);
 
 // Track WebSocket connections
 wss.on('connection', () => {
-  wsConnectionsActive.inc();
+  metricsModule.trackWebSocketConnection(1);
 });
 
 wss.on('close', () => {
-  wsConnectionsActive.dec();
+  metricsModule.trackWebSocketConnection(-1);
 });
 
 const PORT = process.env.PORT || 5000;
@@ -204,8 +161,8 @@ server.listen(PORT, '0.0.0.0', () => {
 const metricsApp = express();
 metricsApp.get('/metrics', async (req, res) => {
   try {
-    res.set('Content-Type', register.contentType);
-    res.end(await register.metrics());
+    res.set('Content-Type', metricsModule.register.contentType);
+    res.end(await metricsModule.register.metrics());
   } catch (err) {
     res.status(500).end(err);
   }

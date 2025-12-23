@@ -3,6 +3,31 @@ const fs = require('fs').promises;
 const path = require('path');
 const { broadcastToUser } = require('../websocket/logStreamer');
 
+// Helper function to track execution metrics
+function trackExecutionMetrics(playgroundType, scenarioName, status, startTime, endTime) {
+  const duration = (endTime - startTime) / 1000; // Convert to seconds
+  
+  try {
+    // Track execution duration histogram
+    if (global.metrics && global.metrics.executionDuration) {
+      global.metrics.executionDuration
+        .labels(playgroundType, scenarioName, status)
+        .observe(duration);
+    }
+    
+    // Track execution counter
+    if (global.metrics && global.metrics.scenarioExecutions) {
+      global.metrics.scenarioExecutions
+        .labels(playgroundType, scenarioName, status)
+        .inc();
+    }
+    
+    global.logger.info(`Metrics tracked for ${playgroundType}/${scenarioName}: ${status} (${duration.toFixed(2)}s)`);
+  } catch (error) {
+    global.logger.error('Error tracking execution metrics:', error);
+  }
+}
+
 // Check if prerequisites are installed
 async function checkPrerequisites(playgroundType) {
   const checks = {
@@ -115,6 +140,10 @@ async function listScenarios(playgroundType) {
 
 // Execute a scenario
 async function executeScenario(executionId, userId, playgroundType, scenarioName, scriptName = null) {
+  const startTime = Date.now();
+  let status = 'failed';
+  let exitCode = 1;
+  
   const scenarioPath = path.join('/app/scenarios', playgroundType, scenarioName);
   
   // Verify scenario exists
@@ -122,55 +151,65 @@ async function executeScenario(executionId, userId, playgroundType, scenarioName
     await fs.access(scenarioPath);
   } catch (error) {
     await updateExecution(executionId, 'failed', 'Scenario not found', 1);
+    trackExecutionMetrics(playgroundType, scenarioName, 'failed', startTime, Date.now());
     return;
   }
 
   // Determine execution command based on playground type
   let command, args;
   
-  switch (playgroundType) {
-    case 'terraform':
-      command = 'bash';
-      args = ['-c', `cd ${scenarioPath} && terraform init && terraform plan`];
-      break;
-    
-    case 'docker':
-      command = 'bash';
-      args = ['-c', `cd ${scenarioPath} && docker-compose up -d`];
-      break;
-    
-    case 'kubernetes':
-      command = 'kubectl';
-      args = ['apply', '-f', scenarioPath];
-      break;
-    
-    case 'scripting':
-      // For scripting scenarios, execute specific script if provided
-      if (scriptName) {
-        const scriptPath = path.join(scenarioPath, `${scriptName}.sh`);
-        try {
-          await fs.access(scriptPath);
-          command = 'bash';
-          args = [scriptPath];
-        } catch (err) {
-          await updateExecution(executionId, 'failed', `Script ${scriptName}.sh not found`, 1);
-          return;
-        }
-      } else {
-        // Default to script.sh
+  try {
+    switch (playgroundType) {
+      case 'terraform':
         command = 'bash';
-        args = [path.join(scenarioPath, 'script.sh')];
-      }
-      break;
-    
-    case 'monitoring':
-      command = 'bash';
-      args = ['-c', `cd ${scenarioPath} && docker-compose up -d`];
-      break;
-    
-    default:
-      await updateExecution(executionId, 'failed', `Unknown playground type: ${playgroundType}`, 1);
-      return;
+        args = ['-c', `cd ${scenarioPath} && terraform init && terraform plan`];
+        break;
+      
+      case 'docker':
+        command = 'bash';
+        args = ['-c', `cd ${scenarioPath} && docker-compose up -d`];
+        break;
+      
+      case 'kubernetes':
+        command = 'kubectl';
+        args = ['apply', '-f', scenarioPath];
+        break;
+      
+      case 'scripting':
+        // For scripting scenarios, execute specific script if provided
+        if (scriptName) {
+          const scriptPath = path.join(scenarioPath, `${scriptName}.sh`);
+          try {
+            await fs.access(scriptPath);
+            command = 'bash';
+            args = [scriptPath];
+          } catch (err) {
+            await updateExecution(executionId, 'failed', `Script ${scriptName}.sh not found`, 1);
+            trackExecutionMetrics(playgroundType, scenarioName, 'failed', startTime, Date.now());
+            return;
+          }
+        } else {
+          // Default to script.sh
+          command = 'bash';
+          args = [path.join(scenarioPath, 'script.sh')];
+        }
+        break;
+      
+      case 'monitoring':
+        command = 'bash';
+        args = ['-c', `cd ${scenarioPath} && docker-compose up -d`];
+        break;
+      
+      default:
+        await updateExecution(executionId, 'failed', `Unknown playground type: ${playgroundType}`, 1);
+        trackExecutionMetrics(playgroundType, scenarioName, 'failed', startTime, Date.now());
+        return;
+    }
+  } catch (error) {
+    global.logger.error(`Error setting up execution for ${playgroundType}:`, error);
+    await updateExecution(executionId, 'failed', error.message, 1);
+    trackExecutionMetrics(playgroundType, scenarioName, 'failed', startTime, Date.now());
+    return;
   }
 
   // Start process
@@ -221,34 +260,40 @@ async function executeScenario(executionId, userId, playgroundType, scenarioName
 
   // Handle completion
   childProcess.on('close', async (code) => {
-    const status = code === 0 ? 'success' : 'failed';
+    exitCode = code;
+    status = code === 0 ? 'success' : 'failed';
+    const endTime = Date.now();
     
+    // Update database
     await updateExecution(executionId, status, allLogs, code);
     
-    // Track metrics
-    if (global.metrics && global.metrics.scenarioExecutions) {
-      global.metrics.scenarioExecutions.labels(playgroundType, scenarioName, status).inc();
-    }
+    // Track metrics with duration
+    trackExecutionMetrics(playgroundType, scenarioName, status, startTime, endTime);
     
+    // Broadcast completion to user
     broadcastToUser(userId, {
       type: 'execution_complete',
       executionId,
       status,
-      exitCode: code
+      exitCode: code,
+      duration: (endTime - startTime) / 1000
     });
 
-    global.logger.info(`Execution ${executionId} completed with status: ${status}`);
+    global.logger.info(`Execution ${executionId} completed: ${playgroundType}/${scenarioName} - ${status} (${((endTime - startTime) / 1000).toFixed(2)}s)`);
   });
 
   // Handle errors
   childProcess.on('error', async (error) => {
+    const endTime = Date.now();
+    status = 'error';
+    
+    // Update database
     await updateExecution(executionId, 'failed', error.message, 1);
     
     // Track metrics
-    if (global.metrics && global.metrics.scenarioExecutions) {
-      global.metrics.scenarioExecutions.labels(playgroundType, scenarioName, 'error').inc();
-    }
+    trackExecutionMetrics(playgroundType, scenarioName, 'error', startTime, endTime);
     
+    // Broadcast error to user
     broadcastToUser(userId, {
       type: 'execution_error',
       executionId,
@@ -274,5 +319,6 @@ async function updateExecution(executionId, status, logs, exitCode) {
 module.exports = {
   checkPrerequisites,
   listScenarios,
-  executeScenario
+  executeScenario,
+  trackExecutionMetrics
 };

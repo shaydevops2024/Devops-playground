@@ -24,7 +24,7 @@ datasources:
     database: devops_playground
     user: devops_admin
     secureJsonData:
-      password: DevOps2024!Secure
+      password: 'DevOps2024!Secure'
     jsonData:
       sslmode: disable
       maxOpenConns: 10

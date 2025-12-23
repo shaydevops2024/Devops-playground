@@ -1,17 +1,22 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import LoadingSpinner from '../components/LoadingSpinner';
 import LogViewer from '../components/LogViewer';
+import MonitoringButtons from '../components/MonitoringButtons';
 import { checkPrerequisites, listScenarios, executeScenario } from '../utils/api';
 import { wsClient } from '../utils/websocket';
+import { FaHome } from 'react-icons/fa';
 
 const DockerPlayground = () => {
+  const navigate = useNavigate();
   const [prerequisites, setPrerequisites] = useState(null);
   const [scenarios, setScenarios] = useState([]);
   const [selectedScenario, setSelectedScenario] = useState(null);
   const [logs, setLogs] = useState([]);
   const [executing, setExecuting] = useState(false);
   const [checkingPrereqs, setCheckingPrereqs] = useState(true);
+  const [executionStartTime, setExecutionStartTime] = useState(null);
 
   useEffect(() => {
     checkDockerPrerequisites();
@@ -70,6 +75,7 @@ const DockerPlayground = () => {
     if (!selectedScenario) return;
 
     setExecuting(true);
+    setExecutionStartTime(new Date());
     setLogs([
       {
         timestamp: new Date().toLocaleTimeString(),
@@ -91,6 +97,10 @@ const DockerPlayground = () => {
         },
       ]);
     }
+  };
+
+  const handleGoHome = () => {
+    navigate('/dashboard');
   };
 
   if (checkingPrereqs) {
@@ -137,6 +147,23 @@ const DockerPlayground = () => {
     <div>
       <Navbar />
       <div className="container">
+        {/* Home button */}
+        <div style={{ marginBottom: '20px' }}>
+          <button
+            className="btn btn-secondary"
+            onClick={handleGoHome}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 20px'
+            }}
+          >
+            <FaHome size={16} />
+            Home
+          </button>
+        </div>
+
         <div className="playground-container">
           {/* Sidebar */}
           <div className="playground-sidebar">
@@ -173,6 +200,11 @@ const DockerPlayground = () => {
                 </button>
               </div>
             )}
+            
+            {/* Monitoring buttons in sidebar */}
+            <div style={{ marginTop: '20px' }}>
+              <MonitoringButtons executionStartTime={executionStartTime} />
+            </div>
           </div>
 
           {/* Main Area */}
@@ -183,6 +215,14 @@ const DockerPlayground = () => {
                 {prerequisites.version}
               </div>
             </div>
+            
+            {/* Compact monitoring buttons when executing */}
+            {executing && (
+              <div style={{ marginBottom: '16px' }}>
+                <MonitoringButtons executionStartTime={executionStartTime} compact />
+              </div>
+            )}
+            
             <LogViewer logs={logs} />
           </div>
         </div>

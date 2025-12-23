@@ -130,6 +130,10 @@ services:
       - node-exporter
 
   # Grafana - Visualization
+  # UPDATED SECTIONS FOR docker-compose.yml
+# Only the Grafana and Loki sections - replace in your existing file
+
+  # Grafana - Visualization
   grafana:
     image: grafana/grafana:latest
     container_name: devops-grafana
@@ -140,6 +144,7 @@ services:
       - GF_SERVER_ROOT_URL=http://localhost:3001
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_AUTH_DISABLE_LOGIN_FORM=false
     ports:
       - "3001:3000"
     volumes:
@@ -155,13 +160,12 @@ services:
 
   # Loki - Log Aggregation
   loki:
-    image: grafana/loki:latest
+    image: grafana/loki:2.9.0
     container_name: devops-loki
     ports:
       - "3100:3100"
     volumes:
       - ./monitoring/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
-      - loki_data:/loki
     command: -config.file=/etc/loki/local-config.yaml
     networks:
       - devops-network
@@ -169,13 +173,11 @@ services:
 
   # Promtail - Log Shipper
   promtail:
-    image: grafana/promtail:latest
+    image: grafana/promtail:2.9.0
     container_name: devops-promtail
     volumes:
       - ./monitoring/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
       - /var/log:/var/log:ro
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - backend_logs:/app/logs:ro
     command: -config.file=/etc/promtail/config.yml
     networks:
       - devops-network

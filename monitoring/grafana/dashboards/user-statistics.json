@@ -1,0 +1,101 @@
+{
+  "uid": "user-statistics",
+  "title": "User Statistics",
+  "tags": ["users", "statistics"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Total Users",
+      "targets": [
+        {
+          "expr": "devops_playground_users_total",
+          "refId": "A"
+        }
+      ],
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 0 },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": 0, "color": "green" },
+              { "value": 10, "color": "yellow" },
+              { "value": 50, "color": "red" }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Active Users (24h)",
+      "targets": [
+        {
+          "expr": "devops_playground_users_active",
+          "refId": "A"
+        }
+      ],
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 0 },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area"
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "New Users Today",
+      "targets": [
+        {
+          "expr": "increase(devops_playground_users_total[24h])",
+          "refId": "A"
+        }
+      ],
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 0 },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area"
+      }
+    },
+    {
+      "id": 4,
+      "type": "graph",
+      "title": "User Registrations Over Time",
+      "targets": [
+        {
+          "expr": "devops_playground_users_total",
+          "refId": "A",
+          "legendFormat": "Total Users"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 }
+    },
+    {
+      "id": 5,
+      "type": "graph",
+      "title": "Active Users Trend",
+      "targets": [
+        {
+          "expr": "devops_playground_users_active",
+          "refId": "A",
+          "legendFormat": "Active Users"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 }
+    }
+  ]
+}
