@@ -2,40 +2,47 @@ import React from 'react';
 import './MonitoringButtons.css';
 
 const MonitoringButtons = () => {
-  // Dynamically get hostname (works for localhost, IP addresses, domains)
-  const hostname = window.location.hostname;
+  // Get hostname - ensure it's always a string
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
 
-  // ONLY 4 buttons: Grafana, Prometheus, Loki, RabbitMQ
+  // Build URLs with explicit string construction
   const buttons = [
     {
       name: 'Grafana',
-      url: `http://${hostname}:3001/d/devops-playground-overview/devops-playground-overview`,
+      url: 'http://' + hostname + ':3001/d/devops-playground-overview/devops-playground-overview',
       description: 'View metrics dashboards',
       icon: '📊',
       color: '#F46800'
     },
     {
       name: 'Prometheus',
-      url: `http://${hostname}:9091/graph`,
+      url: 'http://' + hostname + ':9091/graph',
       description: 'Query metrics directly',
       icon: '🔥',
       color: '#E6522C'
     },
     {
       name: 'Loki',
-      url: `http://${hostname}:3001/explore?orgId=1&left=%7B%22datasource%22:%22loki%22,%22queries%22:%5B%7B%22refId%22:%22A%22,%22expr%22:%22%7Bjob%3D%5C%22backend%5C%22%7D%22%7D%5D,%22range%22:%7B%22from%22:%22now-1h%22,%22to%22:%22now%22%7D%7D`,
+      url: 'http://' + hostname + ':3001/explore',
       description: 'Search and analyze logs',
       icon: '📝',
       color: '#F46800'
     },
     {
       name: 'RabbitMQ',
-      url: `http://${hostname}:15672`,
+      url: 'http://' + hostname + ':15672',
       description: 'Message queue management',
       icon: '🐰',
       color: '#FF6600'
     }
   ];
+
+  // Handle click with explicit navigation
+  const handleClick = (e, url) => {
+    e.preventDefault();
+    console.log('Opening URL:', url); // Debug log
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
 
   return (
     <div className="monitoring-tools-sidebar">
@@ -48,8 +55,7 @@ const MonitoringButtons = () => {
           <a
             key={index}
             href={button.url}
-            target="_blank"
-            rel="noopener noreferrer"
+            onClick={(e) => handleClick(e, button.url)}
             className="monitoring-tool-btn"
             style={{ borderLeftColor: button.color }}
           >
