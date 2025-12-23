@@ -50,13 +50,18 @@ router.post('/execute', async (req, res) => {
   }
 
   try {
-    // Create execution record
+    // Create execution record - CORRECT table name
     const execution = await global.dbPool.query(
-      'INSERT INTO playground_executions (user_id, playground_type, scenario_name, status) VALUES ($1, $2, $3, $4) RETURNING id',
+      'INSERT INTO playground_executions (user_id, playground_type, scenario_name, status, started_at) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP) RETURNING id',
       [userId, playgroundType, `${scenarioName}${scriptName ? ':' + scriptName : ''}`, 'running']
     );
 
     const executionId = execution.rows[0].id;
+
+    // Track execution start in metrics
+    if (typeof global.trackExecutionStart === 'function') {
+      global.trackExecutionStart(playgroundType, scenarioName);
+    }
 
     // Start execution (this will stream logs via WebSocket)
     executeScenario(executionId, userId, playgroundType, scenarioName, scriptName);
@@ -69,7 +74,7 @@ router.post('/execute', async (req, res) => {
     });
   } catch (error) {
     global.logger.error('Execute scenario error:', error);
-    res.status(500).json({ error: 'Failed to execute scenario' });
+    res.status(500).json({ error: 'Failed to execute scenario', details: error.message });
   }
 });
 

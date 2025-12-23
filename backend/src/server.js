@@ -45,7 +45,6 @@ pool.query('SELECT NOW()', (err, res) => {
 // Make available globally
 global.dbPool = pool;
 global.logger = logger;
-global.metrics = metricsModule.metrics;
 global.trackExecutionStart = metricsModule.trackExecutionStart;
 global.trackExecutionComplete = metricsModule.trackExecutionComplete;
 

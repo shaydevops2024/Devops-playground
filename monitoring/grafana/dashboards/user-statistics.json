@@ -5,7 +5,7 @@
   "timezone": "browser",
   "schemaVersion": 38,
   "version": 1,
-  "refresh": "10s",
+  "refresh": "5s",
   "time": {
     "from": "now-24h",
     "to": "now"
@@ -121,17 +121,7 @@
           "legendFormat": "Total Users"
         }
       ],
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "fillOpacity": 10
-          }
-        }
-      }
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 }
     },
     {
       "id": 5,
@@ -141,20 +131,10 @@
         {
           "expr": "devops_playground_users_active OR on() vector(0)",
           "refId": "A",
-          "legendFormat": "Active Users"
+          "legendFormat": "Active Users (24h)"
         }
       ],
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "fillOpacity": 10
-          }
-        }
-      }
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 }
     }
   ]
 }

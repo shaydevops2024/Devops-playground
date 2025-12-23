@@ -1,11 +1,11 @@
 {
   "uid": "devops-playground-overview",
   "title": "DevOps Playground - Overview",
-  "tags": ["devops", "playground", "overview"],
+  "tags": ["devops", "playground"],
   "timezone": "browser",
   "schemaVersion": 38,
-  "version": 2,
-  "refresh": "10s",
+  "version": 1,
+  "refresh": "5s",
   "time": {
     "from": "now-6h",
     "to": "now"
@@ -17,9 +17,8 @@
       "title": "Total Users",
       "targets": [
         {
-          "expr": "devops_playground_users_total OR on() vector(0)",
-          "refId": "A",
-          "instant": true
+          "expr": "devops_playground_users_total",
+          "refId": "A"
         }
       ],
       "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
@@ -50,9 +49,8 @@
       "title": "Total Executions",
       "targets": [
         {
-          "expr": "sum(devops_playground_executions_total) OR on() vector(0)",
-          "refId": "A",
-          "instant": true
+          "expr": "sum(devops_playground_executions_total)",
+          "refId": "A"
         }
       ],
       "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
@@ -83,9 +81,8 @@
       "title": "Success Rate",
       "targets": [
         {
-          "expr": "(sum(devops_playground_executions_successful) / (sum(devops_playground_executions_total) > 0)) * 100 OR on() vector(0)",
-          "refId": "A",
-          "instant": true
+          "expr": "(sum(devops_playground_executions_successful) / sum(devops_playground_executions_total)) * 100",
+          "refId": "A"
         }
       ],
       "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
@@ -120,9 +117,8 @@
       "title": "Active Executions",
       "targets": [
         {
-          "expr": "devops_playground_active_executions OR on() vector(0)",
-          "refId": "A",
-          "instant": true
+          "expr": "devops_playground_active_executions",
+          "refId": "A"
         }
       ],
       "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
@@ -153,9 +149,9 @@
       "title": "Executions Over Time",
       "targets": [
         {
-          "expr": "sum(devops_playground_executions_total) OR on() vector(0)",
+          "expr": "sum(devops_playground_executions_total)",
           "refId": "A",
-          "legendFormat": "Total Executions"
+          "legendFormat": "Total"
         }
       ],
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
@@ -165,18 +161,8 @@
             "drawStyle": "line",
             "lineInterpolation": "linear",
             "lineWidth": 2,
-            "fillOpacity": 10,
-            "showPoints": "auto"
+            "fillOpacity": 10
           }
-        }
-      },
-      "options": {
-        "tooltip": {
-          "mode": "single"
-        },
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
         }
       }
     },
@@ -186,121 +172,12 @@
       "title": "User Activity",
       "targets": [
         {
-          "expr": "devops_playground_users_active OR on() vector(0)",
+          "expr": "devops_playground_users_active",
           "refId": "A",
           "legendFormat": "Active Users"
         }
       ],
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "fillOpacity": 10,
-            "showPoints": "auto"
-          }
-        }
-      }
-    },
-    {
-      "id": 7,
-      "type": "timeseries",
-      "title": "HTTP Request Rate",
-      "targets": [
-        {
-          "expr": "sum(rate(devops_playground_http_requests_total[5m])) OR on() vector(0)",
-          "refId": "A",
-          "legendFormat": "Requests/sec"
-        }
-      ],
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "reqps",
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "fillOpacity": 10
-          }
-        }
-      }
-    },
-    {
-      "id": 8,
-      "type": "timeseries",
-      "title": "WebSocket Connections",
-      "targets": [
-        {
-          "expr": "devops_playground_websocket_connections OR on() vector(0)",
-          "refId": "A",
-          "legendFormat": "Active Connections"
-        }
-      ],
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "fillOpacity": 10
-          }
-        }
-      }
-    },
-    {
-      "id": 9,
-      "type": "timeseries",
-      "title": "Database Connections",
-      "targets": [
-        {
-          "expr": "devops_playground_db_connections OR on() vector(0)",
-          "refId": "A",
-          "legendFormat": "Active Connections"
-        }
-      ],
-      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 20 },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "fillOpacity": 10
-          }
-        }
-      }
-    },
-    {
-      "id": 10,
-      "type": "timeseries",
-      "title": "System Load",
-      "targets": [
-        {
-          "expr": "node_load1",
-          "refId": "A",
-          "legendFormat": "1m"
-        },
-        {
-          "expr": "node_load5",
-          "refId": "B",
-          "legendFormat": "5m"
-        }
-      ],
-      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 20 },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "fillOpacity": 10
-          }
-        }
-      }
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 }
     }
   ]
 }

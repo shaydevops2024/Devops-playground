@@ -5,7 +5,7 @@
   "timezone": "browser",
   "schemaVersion": 38,
   "version": 1,
-  "refresh": "10s",
+  "refresh": "5s",
   "time": {
     "from": "now-6h",
     "to": "now"
@@ -149,7 +149,7 @@
       "title": "Execution Rate",
       "targets": [
         {
-          "expr": "sum(rate(devops_playground_executions_total[5m])) OR on() vector(0)",
+          "expr": "sum(rate(devops_playground_executions_total[1m])) OR on() vector(0)",
           "refId": "A",
           "legendFormat": "Executions/sec"
         }
@@ -157,14 +157,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 5 },
       "fieldConfig": {
         "defaults": {
-          "unit": "reqps",
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "fillOpacity": 10,
-            "showPoints": "auto"
-          }
+          "unit": "reqps"
         }
       }
     },
@@ -184,17 +177,7 @@
           "legendFormat": "Failed"
         }
       ],
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 5 },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "fillOpacity": 10
-          }
-        }
-      }
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 5 }
     },
     {
       "id": 7,
@@ -207,17 +190,7 @@
           "legendFormat": "{{playground}}"
         }
       ],
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 13 },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "fillOpacity": 10
-          }
-        }
-      }
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 13 }
     },
     {
       "id": 8,
@@ -225,7 +198,7 @@
       "title": "Execution Duration (95th percentile)",
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(devops_playground_execution_duration_seconds_bucket[5m]))) OR on() vector(0)",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(devops_playground_execution_duration_seconds_bucket[1m]))) OR on() vector(0)",
           "refId": "A",
           "legendFormat": "95th percentile"
         }
@@ -233,13 +206,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 13 },
       "fieldConfig": {
         "defaults": {
-          "unit": "s",
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "fillOpacity": 10
-          }
+          "unit": "s"
         }
       }
     }

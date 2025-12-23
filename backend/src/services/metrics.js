@@ -87,7 +87,7 @@ const dbConnections = new promClient.Gauge({
   registers: [register]
 });
 
-// Initialize counters from database
+// Initialize counters from database - CORRECT TABLE NAME
 async function initializeCounters(pool) {
   try {
     console.log('🔄 Initializing metrics from database...');
@@ -98,7 +98,7 @@ async function initializeCounters(pool) {
         scenario_name,
         status,
         COUNT(*) as count
-      FROM executions
+      FROM playground_executions
       GROUP BY playground_type, scenario_name, status
     `);
 
@@ -110,7 +110,7 @@ async function initializeCounters(pool) {
 
       executionsTotal.labels(playground, scenario, status).inc(count);
 
-      if (status === 'completed' || status === 'success') {
+      if (status === 'success' || status === 'completed') {
         executionsSuccessful.labels(playground, scenario).inc(count);
       } else if (status === 'failed' || status === 'error') {
         executionsFailed.labels(playground, scenario).inc(count);
@@ -123,7 +123,7 @@ async function initializeCounters(pool) {
   }
 }
 
-// Update user metrics
+// Update user metrics - CORRECT TABLE NAME
 async function updateUserMetrics(pool) {
   try {
     const totalResult = await pool.query('SELECT COUNT(*) as count FROM users');
@@ -131,7 +131,7 @@ async function updateUserMetrics(pool) {
 
     const activeResult = await pool.query(`
       SELECT COUNT(DISTINCT user_id) as count 
-      FROM executions 
+      FROM playground_executions 
       WHERE started_at > NOW() - INTERVAL '24 hours'
     `);
     usersActive.set(parseInt(activeResult.rows[0].count || 0));
@@ -140,12 +140,12 @@ async function updateUserMetrics(pool) {
   }
 }
 
-// Update execution metrics
+// Update execution metrics - CORRECT TABLE NAME
 async function updateExecutionMetrics(pool) {
   try {
     const activeResult = await pool.query(`
       SELECT COUNT(*) as count 
-      FROM executions 
+      FROM playground_executions 
       WHERE status = 'running'
     `);
     activeExecutions.set(parseInt(activeResult.rows[0].count || 0));
@@ -164,7 +164,7 @@ function trackExecutionStart(playground, scenario) {
 function trackExecutionComplete(playground, scenario, status, duration) {
   activeExecutions.dec();
   
-  const normalizedStatus = status === 'completed' || status === 'success' ? 'success' : 'failed';
+  const normalizedStatus = status === 'success' || status === 'completed' ? 'success' : 'failed';
   
   executionsTotal.labels(playground, scenario, normalizedStatus).inc();
   
@@ -219,7 +219,7 @@ function startMetricsCollection(pool) {
     }
   }, 10000);
 
-  console.log('✅ Metrics collection started');
+  console.log('✅ Metrics collection started (updates every 10s)');
 }
 
 module.exports = {
