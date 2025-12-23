@@ -1,177 +1,159 @@
-.monitoring-buttons-container {
-  max-width: 1200px;
-  margin: 40px auto;
-  padding: 20px;
+/* ========================================
+   SIDEBAR MONITORING BUTTONS STYLING
+   For use in ScriptingPlayground right sidebar
+   ======================================== */
+
+.monitoring-tools-sidebar {
+  background: rgba(30, 41, 59, 0.4);
+  border: 1px solid rgba(51, 65, 85, 0.5);
+  border-radius: 12px;
+  padding: 16px;
+  height: fit-content;
 }
 
-.monitoring-header {
+/* Header */
+.monitoring-sidebar-header {
   text-align: center;
-  margin-bottom: 32px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.4);
 }
 
-.monitoring-header h2 {
+.monitoring-sidebar-icon {
   font-size: 28px;
-  margin-bottom: 8px;
-  color: var(--text-primary);
+  display: block;
+  margin-bottom: 6px;
 }
 
-.monitoring-subtitle {
-  color: var(--text-secondary);
-  font-size: 14px;
+.monitoring-sidebar-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #f1f5f9;
 }
 
-.monitoring-subtitle code {
-  background: var(--code-bg);
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-family: 'Courier New', monospace;
-  color: var(--primary-color);
+/* Button List */
+.monitoring-tools-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
 }
 
-.monitoring-buttons-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 20px;
-  margin-bottom: 32px;
-}
-
-.monitoring-button {
+/* Individual Button - THIS IS THE KEY STYLING */
+.monitoring-tool-btn {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 20px;
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-left: 4px solid;
-  border-radius: 12px;
+  gap: 10px;
+  padding: 12px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(51, 65, 85, 0.6);
+  border-left: 3px solid;
+  border-radius: 8px;
   text-decoration: none;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   cursor: pointer;
+  /* Make it look like a proper button */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.monitoring-button:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
-  border-color: var(--border-color);
+.monitoring-tool-btn:hover {
+  background: rgba(30, 41, 59, 0.8);
+  border-right-color: rgba(71, 85, 105, 0.8);
+  border-top-color: rgba(71, 85, 105, 0.8);
+  border-bottom-color: rgba(71, 85, 105, 0.8);
+  transform: translateX(2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
-.monitoring-button-icon {
-  font-size: 32px;
+.monitoring-tool-btn:active {
+  transform: translateX(4px);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Icon */
+.tool-btn-icon {
+  font-size: 20px;
   flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.monitoring-button-content {
+/* Content */
+.tool-btn-content {
   flex: 1;
-}
-
-.monitoring-button-content h3 {
-  margin: 0 0 4px 0;
-  font-size: 18px;
-  color: var(--text-primary);
-}
-
-.monitoring-button-content p {
-  margin: 0 0 8px 0;
-  font-size: 14px;
-  color: var(--text-secondary);
-}
-
-.monitoring-button-url {
-  display: inline-block;
-  font-size: 12px;
-  color: var(--primary-color);
-  background: var(--code-bg);
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-family: 'Courier New', monospace;
-}
-
-.monitoring-footer {
-  text-align: center;
-  padding: 20px;
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-}
-
-.monitoring-footer p {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 14px;
-}
-
-.monitoring-footer strong {
-  color: var(--text-primary);
-}
-
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  .monitoring-button {
-    background: #1e1e1e;
-  }
-  
-  .monitoring-button:hover {
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
-  }
-}
-
-/* Remove page-style spacing in sidebar */
-.playground-main .monitoring-buttons-container {
-  max-width: 100%;
-  margin: 0;
-  padding: 0;
-}
-
-/* Force single-column layout */
-.playground-main .monitoring-buttons-grid {
-  grid-template-columns: 1fr;
-  gap: 8px;
-  margin-bottom: 0;
-}
-
-/* Compact card layout */
-.playground-main .monitoring-button {
-  padding: 8px;
-  gap: 8px;
-  border-radius: 10px;
-}
-
-/* Reduce icon size */
-.playground-main .monitoring-button-icon {
-  font-size: 22px;
-}
-
-/* Allow content to shrink */
-.playground-main .monitoring-button-content {
   min-width: 0;
 }
 
-/* Compact typography */
-.playground-main .monitoring-button-content h3 {
+.tool-btn-content h4 {
+  margin: 0 0 2px 0;
   font-size: 13px;
-  margin-bottom: 2px;
+  font-weight: 600;
+  color: #f1f5f9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.playground-main .monitoring-button-content p {
-  font-size: 11px;
-  margin-bottom: 4px;
-}
-
-/* Compact URL pill */
-.playground-main .monitoring-button-url {
+.tool-btn-content p {
+  margin: 0;
   font-size: 10px;
-  padding: 1px 6px;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Prevent overflow in narrow column */
-.playground-main .monitoring-button-content h3,
-.playground-main .monitoring-button-content p,
-.playground-main .monitoring-button-url {
-  word-break: break-word;
-  overflow-wrap: anywhere;
+/* Footer */
+.monitoring-sidebar-footer {
+  padding-top: 12px;
+  border-top: 1px solid rgba(51, 65, 85, 0.4);
+  text-align: center;
 }
 
-/* Disable hover lift to save vertical space */
-.playground-main .monitoring-button:hover {
-  transform: none;
+.monitoring-sidebar-footer p {
+  margin: 0;
+  font-size: 10px;
+  color: #64748b;
+}
+
+.monitoring-sidebar-footer code {
+  background: rgba(15, 23, 42, 0.6);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  color: #60a5fa;
+  font-size: 9px;
+}
+
+/* ========================================
+   RESPONSIVE
+   ======================================== */
+
+@media (max-width: 1200px) {
+  .monitoring-tools-sidebar {
+    padding: 12px;
+  }
+
+  .monitoring-tool-btn {
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .tool-btn-icon {
+    font-size: 18px;
+    width: 24px;
+    height: 24px;
+  }
+
+  .tool-btn-content h4 {
+    font-size: 12px;
+  }
+
+  .tool-btn-content p {
+    font-size: 9px;
+  }
 }
